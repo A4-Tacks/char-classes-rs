@@ -1,0 +1,16 @@
+[package]
+name = "char-classes"
+version = "0.1.0"
+edition = "2021"
+
+authors = ["A4-Tacks <wdsjxhno1001@163.com>"]
+keywords = ["no_std", "char", "byte", "classes", "cluster"]
+categories = ["no-std", "no-std::no-alloc", "parsing"]
+description = "Simple matching of one char or byte, similar to regex"
+
+license = "MIT"
+repository = "https://github.com/A4-Tacks/char-classes-rs"
+
+readme = "README.md"
+
+[dependencies]
