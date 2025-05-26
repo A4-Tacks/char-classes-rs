@@ -24,7 +24,7 @@ pub trait MatchOne {
     /// ```
     fn match_one(&self, pattern: &Self::Pattern) -> Option<Self::Out>;
 
-    /// Call [`.match_one(pattern).is_some()`](#method.match_one)
+    /// Call [`.match_one(pattern).is_some()`](#tymethod.match_one)
     fn is_match_one(&self, pattern: &Self::Pattern) -> bool {
         self.match_one(pattern).is_some()
     }
