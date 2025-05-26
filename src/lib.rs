@@ -193,6 +193,8 @@ mod tests {
             ("a-bc", 'c'),
             ("a-bc", 'a'),
             ("a-bc", 'b'),
+            ("你好", '你'),
+            ("你好", '好'),
             ("a-", 'a'),
             ("a-", '-'),
             ("-a", '-'),
@@ -222,6 +224,7 @@ mod tests {
     fn first_pattern() {
         let datas = [
             ("a", "a"),
+            ("你", "你好"),
             ("a-c", "a"),
             ("a-c", "b"),
         ];
@@ -235,6 +238,7 @@ mod tests {
     fn first_not_pattern_rest() {
         let datas = [
             ("a", "da"),
+            ("好", "你好"),
             ("a-c", "da"),
             ("a-c", "db"),
             ("ab", "db"),
