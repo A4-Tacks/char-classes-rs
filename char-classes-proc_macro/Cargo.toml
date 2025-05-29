@@ -1,0 +1,17 @@
+[package]
+name = "char-classes-proc_macro"
+version = "0.1.0"
+edition = "2021"
+
+authors = ["A4-Tacks <wdsjxhno1001@163.com>"]
+description = "proc_macro support"
+
+license = "MIT"
+repository = "https://github.com/A4-Tacks/char-classes-rs"
+
+[lib]
+path = "lib.rs"
+proc-macro = true
+
+[dependencies]
+litrs = { version = "0.4.1", default-features = false }

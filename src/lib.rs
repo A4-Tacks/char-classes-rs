@@ -1,6 +1,25 @@
 #![no_std]
 #![doc = include_str!("../README.md")]
 
+/// Like [`any()`], expand into [`matches`] for better performance
+///
+/// # Examples
+///
+/// ```
+/// use char_classes::any;
+///
+/// assert!(any!("ab",      'a'));
+/// assert!(any!("ab",      'b'));
+/// assert!(any!("ab",      'b'));
+/// assert!(any!("a-c",     'a'));
+/// assert!(any!("a-c",     'b'));
+/// assert!(any!("a-c",     'c'));
+/// assert!(any!(b"ab",    b'a'));
+/// assert!(any!(b"ab",    b'b'));
+/// ```
+///
+pub use char_classes_proc_macro::any;
+
 #[doc = include_str!("../README.md")]
 pub trait MatchOne: FirstElem {
     type Pattern: ?Sized;

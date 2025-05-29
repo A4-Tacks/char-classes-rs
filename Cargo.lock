@@ -4,4 +4,20 @@ version = 4
 
 [[package]]
 name = "char-classes"
-version = "0.2.1"
+version = "0.2.2"
+dependencies = [
+ "char-classes-proc_macro",
+]
+
+[[package]]
+name = "char-classes-proc_macro"
+version = "0.1.0"
+dependencies = [
+ "litrs",
+]
+
+[[package]]
+name = "litrs"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4ce301924b7887e9d637144fdade93f9dfff9b60981d4ac161db09720d39aa5"
