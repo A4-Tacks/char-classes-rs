@@ -170,6 +170,8 @@ where I: IntoIterator,
             return true;
         }
 
+        pat.next_if(|_| cur == dash);
+
         first = *cur;
     }
 
@@ -254,6 +256,44 @@ mod tests {
         let datas = [
             ("a", ""),
             ("a-c", ""),
+        ];
+
+        for (pat, val) in datas {
+            assert!(! any(pat, val));
+        }
+    }
+
+    #[test]
+    fn dash_range() {
+        let datas = [
+            ("+--", "+"),
+            ("+--", ","),
+            ("+--", "-"),
+            ("+--a", "+"),
+            ("+--a", ","),
+            ("+--a", "-"),
+            ("+--a", "a"),
+            ("--0", "-"),
+            ("--0", "."),
+            ("--0", "/"),
+            ("--0", "0"),
+            ("--0a", "-"),
+            ("--0a", "."),
+            ("--0a", "/"),
+            ("--0a", "0"),
+            ("--0a", "a"),
+        ];
+
+        for (pat, val) in datas {
+            assert!(any(pat, val));
+        }
+    }
+
+    #[test]
+    fn dash_range_not_pat() {
+        let datas = [
+            ("+--a", "0"),
+            ("---a", "0"),
         ];
 
         for (pat, val) in datas {
