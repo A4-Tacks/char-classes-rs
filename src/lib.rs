@@ -2,8 +2,7 @@
 #![doc = include_str!("../README.md")]
 
 #[doc = include_str!("../README.md")]
-pub trait MatchOne {
-    type Out;
+pub trait MatchOne: FirstElem {
     type Pattern: ?Sized;
 
     /// Match one element or first element
@@ -31,7 +30,6 @@ pub trait MatchOne {
 }
 
 impl<T: MatchOne> MatchOne for Option<T> {
-    type Out = T::Out;
     type Pattern = T::Pattern;
 
     fn match_one(&self, pattern: &Self::Pattern) -> Option<Self::Out> {
@@ -40,7 +38,6 @@ impl<T: MatchOne> MatchOne for Option<T> {
 }
 
 impl<T: MatchOne + ?Sized> MatchOne for &T {
-    type Out = T::Out;
     type Pattern = T::Pattern;
 
     fn match_one(&self, pattern: &Self::Pattern) -> Option<Self::Out> {
@@ -49,7 +46,6 @@ impl<T: MatchOne + ?Sized> MatchOne for &T {
 }
 
 impl<T: MatchOne + ?Sized> MatchOne for &mut T {
-    type Out = T::Out;
     type Pattern = T::Pattern;
 
     fn match_one(&self, pattern: &Self::Pattern) -> Option<Self::Out> {
@@ -58,7 +54,6 @@ impl<T: MatchOne + ?Sized> MatchOne for &mut T {
 }
 
 impl MatchOne for char {
-    type Out = char;
     type Pattern = str;
 
     fn match_one(&self, pattern: &Self::Pattern) -> Option<Self::Out> {
@@ -67,7 +62,6 @@ impl MatchOne for char {
 }
 
 impl MatchOne for u8 {
-    type Out = u8;
     type Pattern = [u8];
 
     fn match_one(&self, pattern: &Self::Pattern) -> Option<Self::Out> {
@@ -76,7 +70,6 @@ impl MatchOne for u8 {
 }
 
 impl MatchOne for str {
-    type Out = char;
     type Pattern = str;
 
     fn match_one(&self, pattern: &Self::Pattern) -> Option<Self::Out> {
@@ -85,7 +78,6 @@ impl MatchOne for str {
 }
 
 impl MatchOne for () {
-    type Out = core::convert::Infallible;
     type Pattern = ();
 
     fn match_one(&self, _pattern: &Self::Pattern) -> Option<Self::Out> {
@@ -94,7 +86,6 @@ impl MatchOne for () {
 }
 
 impl<T: MatchOne> MatchOne for [T] {
-    type Out = T::Out;
     type Pattern = T::Pattern;
 
     fn match_one(&self, pattern: &Self::Pattern) -> Option<Self::Out> {
@@ -103,11 +94,103 @@ impl<T: MatchOne> MatchOne for [T] {
 }
 
 impl<T: MatchOne, const N: usize> MatchOne for [T; N] {
-    type Out = T::Out;
     type Pattern = T::Pattern;
 
     fn match_one(&self, pattern: &Self::Pattern) -> Option<Self::Out> {
         self.first().match_one(pattern)
+    }
+}
+
+macro_rules! impl_first_elem_trivial {
+    ($($ty:ty),+ $(,)?) => {
+        $(
+            impl FirstElem for $ty {
+                type Out = $ty;
+
+                fn first_elem(&self) -> Option<Self::Out> {
+                    Some(*self)
+                }
+            }
+        )+
+    };
+}
+
+/// Get the first element
+pub trait FirstElem {
+    type Out;
+
+    fn first_elem(&self) -> Option<Self::Out>;
+}
+
+impl_first_elem_trivial! {
+    u8,
+    u16,
+    u32,
+    u64,
+    u128,
+    i8,
+    i16,
+    i32,
+    i64,
+    i128,
+    char,
+    f32,
+    f64,
+}
+
+impl FirstElem for () {
+    type Out = core::convert::Infallible;
+
+    fn first_elem(&self) -> Option<Self::Out> {
+        None
+    }
+}
+
+impl<T: FirstElem + ?Sized> FirstElem for &T {
+    type Out = T::Out;
+
+    fn first_elem(&self) -> Option<Self::Out> {
+        (**self).first_elem()
+    }
+}
+
+impl<T: FirstElem + ?Sized> FirstElem for &mut T {
+    type Out = T::Out;
+
+    fn first_elem(&self) -> Option<Self::Out> {
+        (**self).first_elem()
+    }
+}
+
+impl<T: FirstElem> FirstElem for Option<T> {
+    type Out = T::Out;
+
+    fn first_elem(&self) -> Option<Self::Out> {
+        self.as_ref().and_then(T::first_elem)
+    }
+}
+
+impl FirstElem for str {
+    type Out = char;
+
+    fn first_elem(&self) -> Option<Self::Out> {
+        self.chars().next()
+    }
+}
+
+impl<T: FirstElem> FirstElem for [T] {
+    type Out = T::Out;
+
+    fn first_elem(&self) -> Option<Self::Out> {
+        self.first().and_then(T::first_elem)
+    }
+}
+
+impl<T: FirstElem, const N: usize> FirstElem for [T; N] {
+    type Out = T::Out;
+
+    fn first_elem(&self) -> Option<Self::Out> {
+        self.first().and_then(T::first_elem)
     }
 }
 
@@ -147,35 +230,34 @@ fn match_impl<I>(pattern: I, val: &I::Item) -> bool
 where I: IntoIterator,
       I::Item: PartialOrd + From<u8> + Copy,
 {
-    let pat = &mut pattern.into_iter().peekable();
+    let pat = &mut pattern.into_iter();
     let dash = &I::Item::from(b'-');
 
     let Some(mut first) = pat.next() else {
         return false;
     };
 
-    if first == *val {
-        return true;
-    }
-
     while let Some(ref cur) = pat.next() {
-        let peek = pat.peek();
-
-        if cur == dash && peek
-            .is_some_and(|peek| {
-                (first..=*peek).contains(val)
-            })
-        || cur == val && peek.is_none_or(|_| cur != dash)
-        {
+        if first == *val {
             return true;
         }
-
-        pat.next_if(|_| cur == dash);
-
-        first = *cur;
+        if cur != dash {
+            first = *cur;
+        } else if let Some(to) = pat.next() {
+            if (first..=to).contains(val) {
+                return true;
+            }
+            if let Some(next) = pat.next() {
+                first = next;
+            } else {
+                return false;
+            }
+        } else {
+            first = *cur;
+        }
     }
 
-    false
+    first == *val
 }
 
 #[cfg(test)]
@@ -282,10 +364,17 @@ mod tests {
             ("--0a", "/"),
             ("--0a", "0"),
             ("--0a", "a"),
+            ("a-c-e-g", "a"),
+            ("a-c-e-g", "b"),
+            ("a-c-e-g", "c"),
+            ("a-c-e-g", "e"),
+            ("a-c-e-g", "f"),
+            ("a-c-e-g", "g"),
+            ("a-c-e-g", "-"),
         ];
 
         for (pat, val) in datas {
-            assert!(any(pat, val));
+            assert!(any(pat, val), "{pat:?} cannot pattern {val:?}");
         }
     }
 
@@ -294,6 +383,7 @@ mod tests {
         let datas = [
             ("+--a", "0"),
             ("---a", "0"),
+            ("a-c-e-g", "d"),
         ];
 
         for (pat, val) in datas {
