@@ -1,5 +1,6 @@
 #![no_std]
 #![doc = include_str!("../README.md")]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 /// Like [`any()`], expand into [`matches`] for better performance
 ///
@@ -18,6 +19,8 @@
 /// assert!(any!(b"ab",    b'b'));
 /// ```
 ///
+#[cfg(feature = "macros")]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 pub use char_classes_proc_macro::any;
 
 #[doc = include_str!("../README.md")]
