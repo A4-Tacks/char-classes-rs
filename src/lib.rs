@@ -230,35 +230,34 @@ fn match_impl<I>(pattern: I, val: &I::Item) -> bool
 where I: IntoIterator,
       I::Item: PartialOrd + From<u8> + Copy,
 {
-    let pat = &mut pattern.into_iter().peekable();
+    let pat = &mut pattern.into_iter();
     let dash = &I::Item::from(b'-');
 
     let Some(mut first) = pat.next() else {
         return false;
     };
 
-    if first == *val {
-        return true;
-    }
-
     while let Some(ref cur) = pat.next() {
-        let peek = pat.peek();
-
-        if cur == dash && peek
-            .is_some_and(|peek| {
-                (first..=*peek).contains(val)
-            })
-        || cur == val && peek.is_none_or(|_| cur != dash)
-        {
+        if first == *val {
             return true;
         }
-
-        pat.next_if(|_| cur == dash);
-
-        first = *cur;
+        if cur != dash {
+            first = *cur;
+        } else if let Some(to) = pat.next() {
+            if (first..=to).contains(val) {
+                return true;
+            }
+            if let Some(next) = pat.next() {
+                first = next;
+            } else {
+                return false;
+            }
+        } else {
+            first = *cur;
+        }
     }
 
-    false
+    first == *val
 }
 
 #[cfg(test)]
@@ -365,10 +364,17 @@ mod tests {
             ("--0a", "/"),
             ("--0a", "0"),
             ("--0a", "a"),
+            ("a-c-e-g", "a"),
+            ("a-c-e-g", "b"),
+            ("a-c-e-g", "c"),
+            ("a-c-e-g", "e"),
+            ("a-c-e-g", "f"),
+            ("a-c-e-g", "g"),
+            ("a-c-e-g", "-"),
         ];
 
         for (pat, val) in datas {
-            assert!(any(pat, val));
+            assert!(any(pat, val), "{pat:?} cannot pattern {val:?}");
         }
     }
 
@@ -377,6 +383,7 @@ mod tests {
         let datas = [
             ("+--a", "0"),
             ("---a", "0"),
+            ("a-c-e-g", "d"),
         ];
 
         for (pat, val) in datas {
