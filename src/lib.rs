@@ -17,6 +17,8 @@
 /// assert!(any!("a-c",     'c'));
 /// assert!(any!(b"ab",    b'a'));
 /// assert!(any!(b"ab",    b'b'));
+///
+/// assert!(any!(b"ab")(b'b'));
 /// ```
 ///
 #[cfg(feature = "macros")]

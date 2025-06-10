@@ -39,6 +39,10 @@ fn matches(stream: TokenStream) -> TokenStream {
 }
 
 fn first_elem(stream: TokenStream) -> TokenStream {
+    let stream = [
+        TokenStream::from(TokenTree::Punct(Punct::new('&', Joint))),
+        stream,
+    ].into_iter().collect();
     <TokenStream as FromIterator<TokenTree>>::from_iter([
         Punct::new(':', Joint).into(),
         Punct::new(':', Joint).into(),
@@ -185,6 +189,8 @@ where T: ToPat + IsDash,
 /// assert!(any!("a-c",     'c'));
 /// assert!(any!(b"ab",    b'a'));
 /// assert!(any!(b"ab",    b'b'));
+///
+/// assert!(any!(b"ab")(b'b'));
 /// ```
 #[proc_macro]
 pub fn any(input: TokenStream) -> TokenStream {
@@ -192,11 +198,11 @@ pub fn any(input: TokenStream) -> TokenStream {
     let Some(first) = iter.next() else {
         return err("unexpected end of input, expected a literal", Span::call_site());
     };
-    let Some(comma) = iter.next() else {
-        return err("unexpected end of input, expected a comma", Span::call_site());
-    };
-    if !matches!(&comma, TokenTree::Punct(p) if p.as_char() == ',') {
-        return err("unexpected token, expected a comma", comma.span());
+    let comma = iter.next();
+    if comma.as_ref().is_some_and(|comma| {
+        !matches!(&comma, TokenTree::Punct(p) if p.as_char() == ',')
+    }) {
+        return err("unexpected token, expected a comma", comma.unwrap().span());
     }
     let lit_str = match lit_str(&first) {
         Ok(s) => s,
@@ -206,11 +212,25 @@ pub fn any(input: TokenStream) -> TokenStream {
         Str::Norm(s) => to_pats(s.chars(), first.span()),
         Str::Byte(bytes) => to_pats(bytes, first.span()),
     }.map_or_else(identity, |pat| {
-        let expr = once(Punct::new('&', Joint).into())
-            .chain(iter);
-        matches(first_elem(expr.collect()).into_iter()
-            .chain([Punct::new(',', Alone).into()])
-            .chain(pat)
-            .collect())
+        if let Some(comma) = comma {
+            matches(first_elem(iter.collect()).into_iter()
+                .chain([comma])
+                .chain(pat)
+                .collect())
+        } else {
+            let name = TokenTree::from(Ident::new("input", first.span()));
+            let mut comma = Punct::new(',', Alone);
+            comma.set_span(first.span());
+
+            let expr = once(Punct::new('|', Joint).into())
+                .chain([name.clone(), Punct::new('|', Alone).into()])
+                .chain(matches(first_elem(name.into())
+                        .into_iter()
+                        .chain([comma.into()])
+                        .chain(pat)
+                        .collect()))
+                .collect();
+            TokenTree::from(Group::new(Delimiter::None, expr)).into()
+        }
     })
 }
