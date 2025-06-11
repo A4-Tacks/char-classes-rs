@@ -87,6 +87,12 @@ impl Spaned for Literal {
         self
     }
 }
+impl Spaned for Punct {
+    fn spaned(mut self, span: Span) -> Self {
+        self.set_span(span);
+        self
+    }
+}
 
 trait ToPat: Sized {
     fn to_pat(self, span: Span) -> TokenStream;
@@ -190,11 +196,16 @@ where T: ToPat + IsDash,
 /// assert!(any!(b"ab",    b'a'));
 /// assert!(any!(b"ab",    b'b'));
 ///
+/// assert!(! any!(^b"ab",   b'b'));
+///
 /// assert!(any!(b"ab")(b'b'));
 /// ```
 #[proc_macro]
 pub fn any(input: TokenStream) -> TokenStream {
-    let mut iter = input.into_iter();
+    let mut iter = input.into_iter().peekable();
+    let not = iter.next_if(|tt| {
+        matches!(tt, TokenTree::Punct(p) if p.as_char() == '^')
+    }).map(|tt| Punct::new('!', Joint).spaned(tt.span()).into());
     let Some(first) = iter.next() else {
         return err("unexpected end of input, expected a literal", Span::call_site());
     };
@@ -213,10 +224,15 @@ pub fn any(input: TokenStream) -> TokenStream {
         Str::Byte(bytes) => to_pats(bytes, first.span()),
     }.map_or_else(identity, |pat| {
         if let Some(comma) = comma {
-            matches(first_elem(iter.collect()).into_iter()
-                .chain([comma])
-                .chain(pat)
-                .collect())
+            let expr = not.into_iter().chain(matches(
+                first_elem(iter.collect())
+                    .into_iter()
+                    .chain([comma])
+                    .chain(pat)
+                    .collect(),
+            )).collect();
+
+            TokenTree::from(Group::new(Delimiter::None, expr)).into()
         } else {
             let name = TokenTree::from(Ident::new("input", first.span()));
             let mut comma = Punct::new(',', Alone);
@@ -224,6 +240,7 @@ pub fn any(input: TokenStream) -> TokenStream {
 
             let expr = once(Punct::new('|', Joint).into())
                 .chain([name.clone(), Punct::new('|', Alone).into()])
+                .chain(not)
                 .chain(matches(first_elem(name.into())
                         .into_iter()
                         .chain([comma.into()])

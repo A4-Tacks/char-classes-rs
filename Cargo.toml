@@ -21,4 +21,4 @@ macros = ["char-classes-proc_macro"]
 members = ["char-classes-proc_macro"]
 
 [dependencies]
-char-classes-proc_macro = { version = "0.1.1", path = "char-classes-proc_macro", optional = true }
+char-classes-proc_macro = { version = "0.1.2", path = "char-classes-proc_macro", optional = true }
