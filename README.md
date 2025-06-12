@@ -27,7 +27,7 @@ assert!(! any("a-c",    ['d', 'b']));
 assert!(! any("a-c",    "db"));
 ```
 
-Match byte
+**Match byte**:
 
 ```rust
 use char_classes::any;
@@ -38,4 +38,17 @@ assert!(any(b"ab",      b"bd"));
 
 assert!(! any(b"ab",     b'c'));
 assert!(! any(b"ab",     b"db"));
+```
+
+**Using macros for better performance**:
+
+```rust
+use char_classes::any;
+
+assert!(any!(b"ab",      b'a'));
+assert!(any!(b"ab",      b'b'));
+assert!(any!(b"ab",      b"bd"));
+
+assert!(any!(^b"ab",     b'c'));
+assert!(any!(^b"ab",     b"db"));
 ```

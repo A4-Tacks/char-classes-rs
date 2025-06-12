@@ -2,7 +2,7 @@
 #![doc = include_str!("../README.md")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-/// Like [`any()`], expand into [`matches`] for better performance
+/// Like [`any()`], expand into `match` for better performance (about 5x)
 ///
 /// - `^"..."` is exclude pattern
 /// - `!"..."` like `!any!(...)`
@@ -38,6 +38,8 @@
 /// assert!(  any!(!b"ab")(b""));
 /// assert!(! any!(^b"ab")(b""));
 /// ```
+///
+/// ---
 ///
 #[cfg(feature = "macros")]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]

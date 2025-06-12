@@ -294,7 +294,7 @@ where T: ToPat + IsDash,
     Ok(some(result))
 }
 
-/// Like `char_classes::any()`, expand into [`matches`] for better performance
+/// Like `char_classes::any()`, expand into `match` for better performance (about 5x)
 ///
 /// - `^"..."` is exclude pattern
 /// - `!"..."` like `!any!(...)`
