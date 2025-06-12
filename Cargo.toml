@@ -1,6 +1,6 @@
 [package]
 name = "char-classes"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 
 authors = ["A4-Tacks <wdsjxhno1001@163.com>"]
@@ -21,4 +21,4 @@ macros = ["char-classes-proc_macro"]
 members = ["char-classes-proc_macro"]
 
 [dependencies]
-char-classes-proc_macro = { version = "0.1.2", path = "char-classes-proc_macro", optional = true }
+char-classes-proc_macro = { version = "0.2.0", path = "char-classes-proc_macro", optional = true }
