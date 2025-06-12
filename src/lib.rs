@@ -4,6 +4,9 @@
 
 /// Like [`any()`], expand into [`matches`] for better performance
 ///
+/// - `^"..."` is exclude pattern
+/// - `!"..."` like `!any!(...)`
+///
 /// # Examples
 ///
 /// ```
@@ -19,8 +22,21 @@
 /// assert!(any!(b"ab",    b'b'));
 ///
 /// assert!(! any!(^b"ab",   b'b'));
+/// assert!(! any!(^"ab",   ""));
+/// assert!(any!(!"ab",   ""));
+/// ```
 ///
-/// assert!(any!(b"ab")(b'b'));
+/// **predicate mode**:
+///
+/// ```
+/// use char_classes::any;
+///
+/// assert!(any!(b"ab")(b"b"));
+/// assert!(any!(!b"ab")(b"c"));
+/// assert!(any!(^b"ab")(b"c"));
+///
+/// assert!(  any!(!b"ab")(b""));
+/// assert!(! any!(^b"ab")(b""));
 /// ```
 ///
 #[cfg(feature = "macros")]

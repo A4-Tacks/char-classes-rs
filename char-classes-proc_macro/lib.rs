@@ -1,4 +1,4 @@
-use std::{convert::identity, iter::once};
+use std::{convert::identity, iter::{once, Peekable}};
 
 use litrs::{ByteStringLit, StringLit};
 use proc_macro::{Delimiter, Group, Ident, Punct, Spacing::*, Span, TokenStream, TokenTree, Literal};
@@ -36,6 +36,80 @@ fn matches(stream: TokenStream) -> TokenStream {
         Punct::new('!', Joint).into(),
         Group::new(Delimiter::Parenthesis, stream).into()
     ])
+}
+
+fn tts(tt: impl Into<TokenTree>) -> TokenStream {
+    let tt: TokenTree = tt.into();
+    TokenStream::from(tt)
+}
+
+fn stream(i: impl IntoIterator<Item = TokenTree>) -> TokenStream {
+    i.into_iter().collect()
+}
+fn streams(i: impl IntoIterator<Item = TokenStream>) -> TokenStream {
+    i.into_iter().collect()
+}
+
+enum Mode {
+    Normal,
+    Exclude,
+    Not(TokenTree),
+}
+
+use Mode::*;
+
+impl Mode {
+    fn resolve(iter: &mut Peekable<impl Iterator<Item = TokenTree>>) -> Self {
+        match iter.peek() {
+            Some(TokenTree::Punct(p)) if p.as_char() == '!' => {
+                Not(iter.next().unwrap())
+            },
+            Some(TokenTree::Punct(p)) if p.as_char() == '^' => {
+                iter.next().unwrap();
+                Exclude
+            },
+            _ => Normal,
+        }
+    }
+
+    fn run(
+        self,
+        expr: TokenStream,
+        pat: TokenStream,
+        com: TokenTree,
+    ) -> TokenStream {
+        match self {
+            Normal => matches(streams([expr, tts(com), pat])),
+            Not(not) => once(not)
+                .chain(Normal.run(expr, pat, com))
+                .collect(),
+            Exclude => stream([
+                Ident::new("match", com.span()).into(),
+                Group::new(Delimiter::None, expr).into(),
+                Group::new(
+                    Delimiter::Brace,
+                    streams([
+                        none(),
+                        tts(Punct::new('|', Alone)),
+                        pat,
+                        stream([
+                            Punct::new('=', Joint).into(),
+                            Punct::new('>', Alone).into(),
+                            Ident::new("false", Span::call_site()).into(),
+                            Punct::new(',', Alone).into(),
+                        ]),
+                        some(tts(Ident::new("_", Span::call_site()))),
+                        stream([
+                            Punct::new('=', Joint).into(),
+                            Punct::new('>', Alone).into(),
+                            Ident::new("true", Span::call_site()).into(),
+                            Punct::new(',', Alone).into(),
+                        ]),
+                    ]),
+                ).into(),
+            ]),
+        }
+    }
 }
 
 fn first_elem(stream: TokenStream) -> TokenStream {
@@ -136,10 +210,50 @@ impl IsDash for char {
     }
 }
 
-fn some(stream: TokenStream, span: Span) -> TokenStream {
-    TokenStream::from_iter([
-        TokenTree::from(Ident::new("Some", span)),
-        TokenTree::from(Group::new(Delimiter::Parenthesis, stream)),
+trait Expected: Iterator<Item = TokenTree> + Sized {
+    fn expected(&mut self, ty: &str) -> Result<TokenTree, TokenStream> {
+        self.next()
+            .ok_or_else(||
+        {
+            let msg = format!("unexpected end of input, expected a {ty}");
+            err(&msg, Span::call_site())
+        })
+    }
+}
+impl<T: Iterator<Item = TokenTree>> Expected for T { }
+
+fn none() -> TokenStream {
+    stream([
+        Punct::new(':', Joint).into(),
+        Punct::new(':', Joint).into(),
+        Ident::new("core", Span::call_site()).into(),
+        Punct::new(':', Joint).into(),
+        Punct::new(':', Joint).into(),
+        Ident::new("option", Span::call_site()).into(),
+        Punct::new(':', Joint).into(),
+        Punct::new(':', Joint).into(),
+        Ident::new("Option", Span::call_site()).into(),
+        Punct::new(':', Joint).into(),
+        Punct::new(':', Joint).into(),
+        Ident::new("None", Span::call_site()).into(),
+    ])
+}
+
+fn some(input: TokenStream) -> TokenStream {
+    stream([
+        Punct::new(':', Joint).into(),
+        Punct::new(':', Joint).into(),
+        Ident::new("core", Span::call_site()).into(),
+        Punct::new(':', Joint).into(),
+        Punct::new(':', Joint).into(),
+        Ident::new("option", Span::call_site()).into(),
+        Punct::new(':', Joint).into(),
+        Punct::new(':', Joint).into(),
+        Ident::new("Option", Span::call_site()).into(),
+        Punct::new(':', Joint).into(),
+        Punct::new(':', Joint).into(),
+        Ident::new("Some", Span::call_site()).into(),
+        Group::new(Delimiter::Parenthesis, input).into(),
     ])
 }
 
@@ -149,7 +263,7 @@ where T: ToPat + IsDash,
 {
     let mut iter = iter.into_iter().peekable();
     let Some(mut first) = iter.next() else {
-        return Err(err("cannot support empty pattern", span));
+        return Err(err("not support empty pattern", span));
     };
     let mut result = TokenStream::new();
     let mut sep: fn(&mut TokenStream) = |_| ();
@@ -163,7 +277,7 @@ where T: ToPat + IsDash,
             if let Some(next) = iter.next() {
                 first = next;
             } else {
-                return Ok(some(result, span));
+                return Ok(some(result));
             }
         } else {
             result.extend([first.to_pat(span)]);
@@ -177,10 +291,13 @@ where T: ToPat + IsDash,
 
     sep(&mut result);
     result.extend([first.to_pat(span)]);
-    Ok(some(result, span))
+    Ok(some(result))
 }
 
 /// Like `char_classes::any()`, expand into [`matches`] for better performance
+///
+/// - `^"..."` is exclude pattern
+/// - `!"..."` like `!any!(...)`
 ///
 /// # Examples
 ///
@@ -197,57 +314,54 @@ where T: ToPat + IsDash,
 /// assert!(any!(b"ab",    b'b'));
 ///
 /// assert!(! any!(^b"ab",   b'b'));
+/// assert!(! any!(^"ab",   ""));
+/// assert!(any!(!"ab",   ""));
 ///
 /// assert!(any!(b"ab")(b'b'));
 /// ```
+///
+/// **predicate mode**:
+///
+/// ```
+/// use char_classes::any;
+///
+/// assert!(any!(b"ab")(b"b"));
+/// assert!(any!(!b"ab")(b"c"));
+/// assert!(any!(^b"ab")(b"c"));
+///
+/// assert!(any!(!b"ab")(b""));
+/// assert!(! any!(^b"ab")(b""));
+/// ```
 #[proc_macro]
 pub fn any(input: TokenStream) -> TokenStream {
+    any_impl(input).unwrap_or_else(identity)
+}
+
+fn any_impl(input: TokenStream) -> Result<TokenStream, TokenStream> {
     let mut iter = input.into_iter().peekable();
-    let not = iter.next_if(|tt| {
-        matches!(tt, TokenTree::Punct(p) if p.as_char() == '^')
-    }).map(|tt| Punct::new('!', Joint).spaned(tt.span()).into());
-    let Some(first) = iter.next() else {
-        return err("unexpected end of input, expected a literal", Span::call_site());
-    };
-    let comma = iter.next();
-    if comma.as_ref().is_some_and(|comma| {
-        !matches!(&comma, TokenTree::Punct(p) if p.as_char() == ',')
-    }) {
-        return err("unexpected token, expected a comma", comma.unwrap().span());
-    }
-    let lit_str = match lit_str(&first) {
-        Ok(s) => s,
-        Err(e) => return e,
-    };
-    match lit_str {
+    let mode = Mode::resolve(&mut iter);
+    let first = iter.expected("literal")?;
+    let lit_str = lit_str(&first)?;
+
+    let pat = match lit_str {
         Str::Norm(s) => to_pats(s.chars(), first.span()),
         Str::Byte(bytes) => to_pats(bytes, first.span()),
-    }.map_or_else(identity, |pat| {
-        if let Some(comma) = comma {
-            let expr = not.into_iter().chain(matches(
-                first_elem(iter.collect())
-                    .into_iter()
-                    .chain([comma])
-                    .chain(pat)
-                    .collect(),
-            )).collect();
+    }?;
+    let predicate_mode = iter.peek().is_none();
+    let com = iter.next()
+        .unwrap_or_else(|| Punct::new(',', Alone).into());
 
-            TokenTree::from(Group::new(Delimiter::None, expr)).into()
-        } else {
-            let name = TokenTree::from(Ident::new("input", first.span()));
-            let mut comma = Punct::new(',', Alone);
-            comma.set_span(first.span());
+    let output = if predicate_mode {
+        let name = TokenTree::from(Ident::new("input", first.span()));
+        let expr = first_elem(name.clone().into());
 
-            let expr = once(Punct::new('|', Joint).into())
-                .chain([name.clone(), Punct::new('|', Alone).into()])
-                .chain(not)
-                .chain(matches(first_elem(name.into())
-                        .into_iter()
-                        .chain([comma.into()])
-                        .chain(pat)
-                        .collect()))
-                .collect();
-            TokenTree::from(Group::new(Delimiter::None, expr)).into()
-        }
-    })
+        once(Punct::new('|', Joint).into())
+            .chain([name, Punct::new('|', Alone).into()])
+            .chain(mode.run(expr, pat, com))
+            .collect()
+    } else {
+        mode.run(first_elem(iter.collect()), pat, com)
+    };
+
+    Ok(tts(Group::new(Delimiter::None, output)))
 }
