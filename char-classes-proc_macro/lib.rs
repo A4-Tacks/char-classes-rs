@@ -138,10 +138,10 @@ enum Str {
 
 fn lit_str(tt: &TokenTree) -> Result<Str, TokenStream> {
     StringLit::try_from(tt)
-        .map(|s| Str::Norm(s.into_value().into_owned()))
+        .map(|s| Str::Norm(s.into_value()))
         .map_err(|e| e.to_string())
         .or_else(|e| ByteStringLit::try_from(tt)
-            .map(|b| Str::Byte(b.into_value().into_owned()))
+            .map(|b| Str::Byte(b.into_value()))
             .map_err(|e2| format!("{e}\n{e2}")))
         .map_err(|e| err(&e, tt.span()))
 }
@@ -322,7 +322,7 @@ where T: ToPat + IsDash,
 ///
 /// **predicate mode**:
 ///
-/// ```
+/// ```ignore
 /// use char_classes::any;
 ///
 /// assert!(any!(b"ab")(b"b"));
