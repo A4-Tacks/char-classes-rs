@@ -6,6 +6,7 @@
 ///
 /// - `^"..."` is exclude pattern
 /// - `!"..."` like `!any!(...)`
+/// - `@"..."` expand to pattern only, can used for `match`
 ///
 /// # Examples
 ///
@@ -37,6 +38,18 @@
 ///
 /// assert!(  any!(!b"ab")(b""));
 /// assert!(! any!(^b"ab")(b""));
+/// ```
+///
+/// **pattern mode**:
+///
+/// ```ignore
+/// use char_classes::any;
+///
+/// match 'x' {
+///     any!(@"a-z") => (),
+///     _ => panic!(),
+/// }
+/// assert!(matches!('c', any!(@"a-z")));
 /// ```
 ///
 /// ---

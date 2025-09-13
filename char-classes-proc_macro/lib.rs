@@ -54,6 +54,7 @@ enum Mode {
     Normal,
     Exclude,
     Not(TokenTree),
+    Pattern,
 }
 
 use Mode::*;
@@ -68,6 +69,10 @@ impl Mode {
                 iter.next().unwrap();
                 Exclude
             },
+            Some(TokenTree::Punct(p)) if p.as_char() == '@' => {
+                iter.next().unwrap();
+                Pattern
+            },
             _ => Normal,
         }
     }
@@ -79,6 +84,7 @@ impl Mode {
         com: TokenTree,
     ) -> TokenStream {
         match self {
+            Pattern => unimplemented!(),
             Normal => matches(streams([expr, tts(com), pat])),
             Not(not) => once(not)
                 .chain(Normal.run(expr, pat, com))
@@ -298,6 +304,7 @@ where T: ToPat + IsDash,
 ///
 /// - `^"..."` is exclude pattern
 /// - `!"..."` like `!any!(...)`
+/// - `@"..."` expand to pattern only, can used for `match`
 ///
 /// # Examples
 ///
@@ -332,6 +339,18 @@ where T: ToPat + IsDash,
 /// assert!(any!(!b"ab")(b""));
 /// assert!(! any!(^b"ab")(b""));
 /// ```
+///
+/// **pattern mode**:
+///
+/// ```ignore
+/// use char_classes::any;
+///
+/// match 'x' {
+///     any!(@"a-z") => (),
+///     _ => panic!(),
+/// }
+/// assert!(matches!('c', any!(@"a-z")));
+/// ```
 #[proc_macro]
 pub fn any(input: TokenStream) -> TokenStream {
     any_impl(input).unwrap_or_else(identity)
@@ -348,6 +367,13 @@ fn any_impl(input: TokenStream) -> Result<TokenStream, TokenStream> {
         Str::Byte(bytes) => to_pats(bytes, first.span()),
     }?;
     let predicate_mode = iter.peek().is_none();
+    if let Pattern = mode {
+        if let Some(extra) = iter.peek() {
+            return Err(err("unexpected token, expect end of input", extra.span()));
+        }
+        return Ok(pat);
+    }
+
     let com = iter.next()
         .unwrap_or_else(|| Punct::new(',', Alone).into());
 
