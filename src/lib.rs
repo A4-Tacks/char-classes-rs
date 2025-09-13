@@ -42,7 +42,7 @@
 ///
 /// **pattern mode**:
 ///
-/// ```ignore
+/// ```
 /// use char_classes::any;
 ///
 /// match 'x' {

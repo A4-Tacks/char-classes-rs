@@ -283,7 +283,7 @@ where T: ToPat + IsDash,
             if let Some(next) = iter.next() {
                 first = next;
             } else {
-                return Ok(some(result));
+                return Ok(result);
             }
         } else {
             result.extend([first.to_pat(span)]);
@@ -297,7 +297,7 @@ where T: ToPat + IsDash,
 
     sep(&mut result);
     result.extend([first.to_pat(span)]);
-    Ok(some(result))
+    Ok(result)
 }
 
 /// Like `char_classes::any()`, expand into `match` for better performance (about 5x)
@@ -373,6 +373,7 @@ fn any_impl(input: TokenStream) -> Result<TokenStream, TokenStream> {
         }
         return Ok(pat);
     }
+    let pat = some(pat);
 
     let com = iter.next()
         .unwrap_or_else(|| Punct::new(',', Alone).into());
