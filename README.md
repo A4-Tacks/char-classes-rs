@@ -52,3 +52,11 @@ assert!(any!(b"ab",      b"bd"));
 assert!(any!(^b"ab",     b'c'));
 assert!(any!(^b"ab",     b"db"));
 ```
+
+**Using macros inside match pattern**:
+
+```rust
+use char_classes::any;
+
+if let any!(@"a-z") = 'c' {}
+```
