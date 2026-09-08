@@ -6,7 +6,7 @@ Lightweight and easy to use, and can work conveniently on `u8` and `Option`
 # Examples
 
 ```rust
-use char_classes::any;
+use char_classes::functions::any;
 
 assert!(any("ab",       'a'));
 assert!(any("ab",       'b'));
@@ -30,7 +30,7 @@ assert!(! any("a-c",    "db"));
 **Match byte**:
 
 ```rust
-use char_classes::any;
+use char_classes::functions::any;
 
 assert!(any(b"ab",      b'a'));
 assert!(any(b"ab",      b'b'));

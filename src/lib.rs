@@ -251,36 +251,40 @@ impl<T: FirstElem, const N: usize> FirstElem for [T; N] {
     }
 }
 
-/// Call [`MatchOne::is_match_one`]
-///
-/// Match `'-'` Please write at the beginning or end, e.g `"a-z-"`
-///
-/// # Examples
-///
-/// ```
-/// # use char_classes::any;
-/// assert!(any("ab",       'a'));
-/// assert!(any("ab",       'b'));
-/// assert!(any("a-c",      'a'));
-/// assert!(any("a-c",      'b'));
-/// assert!(any("a-ce-f",   'e'));
-/// assert!(any("a-ce-",    '-'));
-/// assert!(any("a-ce-",    'e'));
-/// assert!(any("a-c",      Some('b')));
-/// assert!(any("a-c",      ['b', 'd']));
-/// assert!(any("a-c",      "bd"));
-///
-/// assert!(! any("a-c",    '-'));
-/// assert!(! any("a-ce-",  'f'));
-///
-/// assert!(! any("a-c",    None::<char>));
-/// assert!(! any("a-c",    ['d', 'b']));
-/// assert!(! any("a-c",    "db"));
-/// ```
-pub fn any<T>(pattern: impl AsRef<T::Pattern>, val: T) -> bool
-where T: MatchOne,
-{
-    val.is_match_one(pattern.as_ref())
+pub mod functions {
+    use super::MatchOne;
+
+    /// Call [`MatchOne::is_match_one`]
+    ///
+    /// Match `'-'` Please write at the beginning or end, e.g `"a-z-"`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use char_classes::functions::any;
+    /// assert!(any("ab",       'a'));
+    /// assert!(any("ab",       'b'));
+    /// assert!(any("a-c",      'a'));
+    /// assert!(any("a-c",      'b'));
+    /// assert!(any("a-ce-f",   'e'));
+    /// assert!(any("a-ce-",    '-'));
+    /// assert!(any("a-ce-",    'e'));
+    /// assert!(any("a-c",      Some('b')));
+    /// assert!(any("a-c",      ['b', 'd']));
+    /// assert!(any("a-c",      "bd"));
+    ///
+    /// assert!(! any("a-c",    '-'));
+    /// assert!(! any("a-ce-",  'f'));
+    ///
+    /// assert!(! any("a-c",    None::<char>));
+    /// assert!(! any("a-c",    ['d', 'b']));
+    /// assert!(! any("a-c",    "db"));
+    /// ```
+    pub fn any<T>(pattern: impl AsRef<T::Pattern>, val: T) -> bool
+    where T: MatchOne,
+    {
+        val.is_match_one(pattern.as_ref())
+    }
 }
 
 fn match_impl<I>(pattern: I, val: &I::Item) -> bool
@@ -320,6 +324,7 @@ where I: IntoIterator,
 #[cfg(test)]
 mod tests {
     use super::*;
+    use functions::any;
 
     #[test]
     fn basic_pattern() {
