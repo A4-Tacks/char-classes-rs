@@ -58,5 +58,5 @@ assert!(any!(^b"ab",     b"db"));
 ```rust
 use char_classes::any;
 
-if let any!(@"a-z") = 'c' {}
+if let Some(any!(@"a-z")) = Some('c') {}
 ```
